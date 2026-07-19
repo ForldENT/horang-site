@@ -54,21 +54,20 @@
 <script>
 App.header("status.html");
 const admin = App.isAdmin();
+const sheet = Store.useSheet;
+const canEdit = admin && !sheet;
 const listEl = document.querySelector("[data-list]");
 const modal = document.querySelector("[data-modal]");
 let editIndex = -1;
 
 if (admin) {
-  document.querySelector("[data-admin-tools]").innerHTML = `
-    <button class="btn btn--primary" data-add>현황 추가</button>
-    ${CONFIG.SHEETS.status ? '<button class="btn" data-sync>시트에서 불러오기</button>' : ""}
-    ${CONFIG.SHEET_LINKS.status ? `<a class="btn" target="_blank" rel="noopener" href="${CONFIG.SHEET_LINKS.status}">시트 열기</a>` : ""}`;
-  document.querySelector("[data-add]").onclick = () => open(-1);
-  const sync = document.querySelector("[data-sync]");
-  if (sync) sync.onclick = async () => {
-    try { const n = await Store.syncStatus(); App.toast(n + "건을 불러왔습니다."); render(); }
-    catch (e) { App.toast(e.message, true); }
-  };
+  const tools = document.querySelector("[data-admin-tools]");
+  if (sheet) {
+    tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
+  } else {
+    tools.innerHTML = `<button class="btn btn--primary" data-add>현황 추가</button>`;
+    tools.querySelector("[data-add]").onclick = () => open(-1);
+  }
 }
 
 function render() {
@@ -90,13 +89,13 @@ function render() {
       </div>
       ${s.back ? `<p class="status__note">복귀 예정 · ${App.esc(s.back)}</p>` : ""}
       ${s.note ? `<p class="status__note">${App.esc(s.note)}</p>` : ""}
-      ${admin ? `<div class="member__tools">
+      ${canEdit ? `<div class="member__tools">
         <button class="btn btn--sm btn--ghost" data-edit="${i}">수정</button>
         <button class="btn btn--sm btn--danger" data-del="${i}">삭제</button>
       </div>` : ""}
     </article>`).join("");
 
-  if (admin) {
+  if (canEdit) {
     listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => open(+b.dataset.edit));
     listEl.querySelectorAll("[data-del]").forEach(b => b.onclick = () => remove(+b.dataset.del));
   }
@@ -145,7 +144,11 @@ function remove(i) {
 }
 
 document.querySelector("[data-filter]").onchange = render;
-render();
+
+/* 서버 모드면 데이터를 받아온 뒤 그립니다. 아니면 즉시 그립니다. */
+Store.load()
+  .then(render)
+  .catch(e => { render(); App.toast(e.message, true); });
 </script>
 </body>
 </html>

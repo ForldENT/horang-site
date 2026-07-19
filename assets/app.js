@@ -7,7 +7,7 @@
 
   /* config.js를 못 불러온 경우 — 화면이 백지로 뜨는 대신 원인을 알려줍니다. */
   if (typeof window.CONFIG === "undefined") {
-    window.CONFIG = { ROOM_NAME: "설정 없음", BOT_NAME: "봇", ADMIN_KEY: "", SHEETS: {}, SHEET_LINKS: {} };
+    window.CONFIG = { ROOM_NAME: "설정 없음", BOT_NAME: "봇", ADMIN_KEY: "", SHEET_ID: "", SHEETS: {} };
     document.addEventListener("DOMContentLoaded", function () {
       const b = document.createElement("div");
       b.style.cssText = "position:fixed;inset:0 0 auto 0;z-index:99;background:#FF5C7A;color:#17070C;"

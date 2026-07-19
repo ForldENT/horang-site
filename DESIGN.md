@@ -68,9 +68,11 @@
 | `.hero__title`, `.hero__desc` | 홈 큰 제목 |
 | `.tile` | 홈의 세 칸 (명령어 / 멤버 / 현황) |
 | `.page__eyebrow`, `.page__title` | 각 페이지 머리말 |
-| `.bubble--me` | 명령어 말풍선 (사람이 치는 쪽) |
-| `.bubble--bot` | 봇 설명 말풍선 |
-| `.log__day` | 명령어 분류 구분선 |
+| `.cmds` | 명령어 목록 전체를 감싸는 상자 |
+| `.cmd` | 명령어 한 줄 |
+| `.cmd__key` | 왼쪽 명령어 글자 |
+| `.cmd__desc` | 오른쪽 설명 글자 |
+| `.cmds__group` | 분류 구분선 (신입 안내, 운영 …) |
 | `.member`, `.member__nick`, `.row` | 멤버 소개 카드와 항목 줄 |
 | `.status`, `.state--매칭`, `.state--외출` | 현황 카드와 상태 점 |
 | `.btn`, `.btn--primary`, `.btn--danger` | 버튼 3종 |
@@ -82,10 +84,14 @@
 
 ## 4단계 — 자주 하는 커스텀
 
-**말풍선을 각지게**
+**명령어 칸 너비 조절** (긴 명령어가 잘릴 때)
 ```css
-.bubble { border-radius: 6px; }
-.bubble--me, .bubble--bot { border-bottom-right-radius: 6px; border-bottom-left-radius: 6px; }
+.cmd { grid-template-columns: 200px 1fr auto; }
+```
+
+**한 줄씩 구분선 넣기**
+```css
+.cmd { border-bottom: 1px solid var(--line); border-radius: 0; }
 ```
 
 **카드에 그림자 넣기**

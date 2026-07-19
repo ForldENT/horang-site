@@ -61,9 +61,7 @@
     box.innerHTML = `
       <div class="card">
         <h2 style="font-size:17px;margin-bottom:8px">관리자로 보고 있습니다</h2>
-        <p style="color:var(--text-dim);font-size:14px;margin:0 0 16px">
-          세 페이지 모두 추가 · 수정 · 삭제 버튼이 보입니다. 아래 주소를 방에 공유하면 사람들은 보기만 할 수 있습니다.
-        </p>
+        <p style="color:var(--text-dim);font-size:14px;margin:0 0 16px" data-mode></p>
         <div class="field">
           <label class="field__label">일반 공유 주소</label>
           <input class="input" readonly data-share>
@@ -77,6 +75,11 @@
           </label>
         </div>
       </div>`;
+
+    box.querySelector("[data-mode]").innerHTML = Store.useSheet
+      ? '내용은 구글 시트에서 관리합니다. 시트를 고치면 이 사이트에 바로 반영됩니다. '
+        + '<a href="' + Store.sheetEditUrl() + '" target="_blank" rel="noopener" style="color:var(--accent-2)">시트 열기</a>'
+      : "세 페이지 모두 추가 · 수정 · 삭제 버튼이 보입니다. 아래 주소를 방에 공유하면 사람들은 보기만 할 수 있습니다.";
 
     const share = location.href.split("?")[0];
     box.querySelector("[data-share]").value = share;

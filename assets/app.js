@@ -3,7 +3,7 @@
    ============================================================ */
 
 (function () {
-  const SESSION = "chungu.admin";
+  const SESSION = "horang.admin";
 
   /* config.js를 못 불러온 경우 — 화면이 백지로 뜨는 대신 원인을 알려줍니다. */
   if (typeof window.CONFIG === "undefined") {
@@ -59,11 +59,12 @@
     ];
     const el = document.querySelector("[data-header]");
     if (!el) return;
+    const sub = CONFIG.ROOM_NAME === CONFIG.BOT_NAME ? "안내소" : CONFIG.BOT_NAME + " 안내소";
     el.innerHTML = `
       <a class="brand" href="${link("index.html")}">
         <span class="brand__dot" aria-hidden="true"></span>
         <span class="brand__name">${esc(CONFIG.ROOM_NAME)}</span>
-        <span class="brand__sub">${esc(CONFIG.BOT_NAME)} 안내소</span>
+        <span class="brand__sub">${esc(sub)}</span>
       </a>
       <nav class="nav">
         ${nav.map(([h, t]) =>

@@ -4,14 +4,14 @@
 
 window.CONFIG = {
   /* 방 이름 / 봇 이름 */
-  ROOM_NAME: "춘구방",
-  BOT_NAME: "춘구봇",
+  ROOM_NAME: "호랑봇",
+  BOT_NAME: "호랑봇",
 
   /* 관리자 키.
      관리자 링크 = index.html?key=여기적은값
      ※ 이건 브라우저에서 확인 가능한 "간이 잠금"입니다.
         진짜 보안이 필요하면 README의 [보안] 항목을 읽어주세요. */
-  ADMIN_KEY: "chungu-2026",
+  ADMIN_KEY: "horang-2026",
 
   /* 구글 시트 연동 (선택)
      시트 → 파일 → 공유 → 웹에 게시 → CSV 선택 → 나온 주소를 붙여넣기.

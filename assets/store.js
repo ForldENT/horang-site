@@ -4,7 +4,7 @@
    ============================================================ */
 
 (function () {
-  const KEY = "chungu.data.v1";
+  const KEY = "horang.data.v1";
   let memory = null; // localStorage를 못 쓰는 환경용 대체 저장소
 
   const SEED = {
@@ -31,14 +31,14 @@
     ],
     members: [
       {
-        nick: "춘구", age: "30", height: "178", job: "게임 개발",
+        nick: "호랑", age: "30", height: "178", job: "게임 개발",
         off: "주말", hobby: "헬스, 게임", mbti: "ENTJ",
         charm: "말 잘 들어줍니다", ideal: "웃음 많은 사람",
         smoke: "비흡연 / 소주 1병", say: "잘 부탁드립니다!"
       }
     ],
     status: [
-      { nick: "춘구", state: "외출", partner: "", back: "오늘 22시", note: "저녁 약속" }
+      { nick: "호랑", state: "외출", partner: "", back: "오늘 22시", note: "저녁 약속" }
     ]
   };
 
@@ -99,7 +99,7 @@
       const blob = new Blob([JSON.stringify(read(), null, 2)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "chungu-data.json";
+      a.download = "horang-data.json";
       a.click();
       URL.revokeObjectURL(a.href);
     },

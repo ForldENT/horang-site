@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1 class="hero__title">방에서 궁금한 건<br><em>여기서</em> 다 찾습니다.</h1>
+    <p class="hero__desc">
+      봇 명령어, 멤버 소개, 지금 누가 매칭 중이고 누가 외출했는지.
+      채팅 위로 올려가며 찾지 말고 이 페이지를 열어두세요.
+    </p>
+  </section>
+
+  <section class="grid grid--3" style="margin-top:8px">
+    <a class="tile" href="commands.html" data-tile="commands">
+      <span class="tile__no">01</span>
+      <h2 class="tile__title">명령어</h2>
+      <p class="tile__desc">봇에게 뭐라고 쳐야 하는지, 무엇이 나오는지.</p>
+    </a>
+    <a class="tile" href="members.html" data-tile="members">
+      <span class="tile__no">02</span>
+      <h2 class="tile__title">멤버 소개</h2>
+      <p class="tile__desc">닉네임부터 이상형까지, 방 사람들 자기소개.</p>
+    </a>
+    <a class="tile" href="status.html" data-tile="status">
+      <span class="tile__no">03</span>
+      <h2 class="tile__title">매칭 · 외출</h2>
+      <p class="tile__desc">지금 누가 매칭 중이고, 누가 자리를 비웠는지.</p>
+    </a>
+  </section>
+
+  <section style="margin-top:40px" data-admin-box></section>
+
+  <section class="note" style="margin-top:30px">
+    수정은 관리자만 할 수 있습니다. 잘못된 내용이 있으면 방에서 운영자에게 알려주세요.
+  </section>
+</main>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  document.title = CONFIG.ROOM_NAME + " 안내소";
+  App.header("index.html");
+
+  // 관리자면 타일 링크에도 키를 붙여줍니다.
+  document.querySelectorAll("[data-tile]").forEach(a => {
+    a.href = App.link(a.getAttribute("href"));
+  });
+
+  const box = document.querySelector("[data-admin-box]");
+  if (App.isAdmin()) {
+    box.innerHTML = `
+      <div class="card">
+        <h2 style="font-size:17px;margin-bottom:8px">관리자로 보고 있습니다</h2>
+        <p style="color:var(--text-dim);font-size:14px;margin:0 0 16px">
+          세 페이지 모두 추가 · 수정 · 삭제 버튼이 보입니다. 아래 주소를 방에 공유하면 사람들은 보기만 할 수 있습니다.
+        </p>
+        <div class="field">
+          <label class="field__label">일반 공유 주소</label>
+          <input class="input" readonly data-share>
+        </div>
+        <div class="toolbar" style="margin:0">
+          <button class="btn btn--primary" data-copy>주소 복사</button>
+          <button class="btn" onclick="Store.export()">데이터 내보내기</button>
+          <label class="btn" style="display:inline-block">
+            데이터 가져오기
+            <input type="file" accept="application/json" hidden data-import>
+          </label>
+        </div>
+      </div>`;
+
+    const share = location.href.split("?")[0];
+    box.querySelector("[data-share]").value = share;
+    box.querySelector("[data-copy]").onclick = async () => {
+      try { await navigator.clipboard.writeText(share); App.toast("주소를 복사했습니다."); }
+      catch (e) { App.toast("복사가 막혀 있습니다. 주소를 직접 선택해 주세요.", true); }
+    };
+    box.querySelector("[data-import]").onchange = e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      Store.import(f, err => err ? App.toast(err.message, true) : (App.toast("데이터를 가져왔습니다.")));
+    };
+  } else {
+    box.innerHTML = `
+      <div class="card">
+        <h2 style="font-size:17px;margin-bottom:8px">운영자이신가요?</h2>
+        <p style="color:var(--text-dim);font-size:14px;margin:0 0 14px">
+          관리자 키를 입력하면 수정 화면이 열립니다.
+        </p>
+        <div class="toolbar" style="margin:0">
+          <input class="input" style="max-width:240px" type="password" placeholder="관리자 키" data-key>
+          <button class="btn btn--primary" data-in>들어가기</button>
+        </div>
+      </div>`;
+    const input = box.querySelector("[data-key]");
+    const go = () => {
+      if (input.value === CONFIG.ADMIN_KEY) location.href = "index.html?key=" + encodeURIComponent(input.value);
+      else App.toast("키가 맞지 않습니다.", true);
+    };
+    box.querySelector("[data-in]").onclick = go;
+    input.onkeydown = e => { if (e.key === "Enter") go(); };
+  }
+</script>
+</body>
+</html>

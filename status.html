@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>매칭 · 외출 · 호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap page">
+  <p class="page__eyebrow">현황</p>
+  <h1 class="page__title">지금 방 상황</h1>
+  <p class="page__desc">매칭 중인 사람과 자리를 비운 사람을 한눈에 봅니다.</p>
+
+  <div class="toolbar">
+    <select class="select" style="max-width:160px" data-filter>
+      <option value="">전체</option>
+      <option value="매칭">매칭 중</option>
+      <option value="외출">외출 중</option>
+    </select>
+    <span class="toolbar__spacer"></span>
+    <span data-admin-tools></span>
+  </div>
+
+  <div class="grid grid--2" data-list></div>
+</main>
+
+<div class="modal" data-modal>
+  <div class="modal__box">
+    <h2 class="modal__title" data-modal-title>현황 추가</h2>
+    <label class="field"><span class="field__label">닉네임</span>
+      <input class="input" data-f-nick></label>
+    <label class="field"><span class="field__label">상태</span>
+      <select class="select" data-f-state><option>매칭</option><option>외출</option></select></label>
+    <label class="field"><span class="field__label">상대 (매칭일 때)</span>
+      <input class="input" data-f-partner placeholder="비워둬도 됩니다"></label>
+    <label class="field"><span class="field__label">복귀 예정</span>
+      <input class="input" data-f-back placeholder="예: 오늘 22시"></label>
+    <label class="field"><span class="field__label">메모</span>
+      <textarea class="textarea" data-f-note></textarea></label>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-cancel>취소</button>
+      <button class="btn btn--primary" data-save>저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+App.header("status.html");
+const admin = App.isAdmin();
+const listEl = document.querySelector("[data-list]");
+const modal = document.querySelector("[data-modal]");
+let editIndex = -1;
+
+if (admin) {
+  document.querySelector("[data-admin-tools]").innerHTML = `
+    <button class="btn btn--primary" data-add>현황 추가</button>
+    ${CONFIG.SHEETS.status ? '<button class="btn" data-sync>시트에서 불러오기</button>' : ""}
+    ${CONFIG.SHEET_LINKS.status ? `<a class="btn" target="_blank" rel="noopener" href="${CONFIG.SHEET_LINKS.status}">시트 열기</a>` : ""}`;
+  document.querySelector("[data-add]").onclick = () => open(-1);
+  const sync = document.querySelector("[data-sync]");
+  if (sync) sync.onclick = async () => {
+    try { const n = await Store.syncStatus(); App.toast(n + "건을 불러왔습니다."); render(); }
+    catch (e) { App.toast(e.message, true); }
+  };
+}
+
+function render() {
+  const f = document.querySelector("[data-filter]").value;
+  const list = Store.get().status.map((s, i) => ({ s, i })).filter(({ s }) => !f || s.state === f);
+
+  if (!list.length) {
+    listEl.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <strong>지금은 조용합니다</strong>매칭 중이거나 외출한 사람이 없습니다.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(({ s, i }) => `
+    <article class="card state--${App.esc(s.state)}">
+      <div class="status">
+        <span class="status__dot"></span>
+        <span class="status__nick">${App.esc(s.nick)}</span>
+        <span class="status__label">${App.esc(s.state)}${s.partner ? " · " + App.esc(s.partner) + "님과" : ""}</span>
+      </div>
+      ${s.back ? `<p class="status__note">복귀 예정 · ${App.esc(s.back)}</p>` : ""}
+      ${s.note ? `<p class="status__note">${App.esc(s.note)}</p>` : ""}
+      ${admin ? `<div class="member__tools">
+        <button class="btn btn--sm btn--ghost" data-edit="${i}">수정</button>
+        <button class="btn btn--sm btn--danger" data-del="${i}">삭제</button>
+      </div>` : ""}
+    </article>`).join("");
+
+  if (admin) {
+    listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => open(+b.dataset.edit));
+    listEl.querySelectorAll("[data-del]").forEach(b => b.onclick = () => remove(+b.dataset.del));
+  }
+}
+
+function open(i) {
+  editIndex = i;
+  const s = i < 0 ? { nick: "", state: "매칭", partner: "", back: "", note: "" } : Store.get().status[i];
+  document.querySelector("[data-modal-title]").textContent = i < 0 ? "현황 추가" : "현황 수정";
+  document.querySelector("[data-f-nick]").value = s.nick;
+  document.querySelector("[data-f-state]").value = s.state;
+  document.querySelector("[data-f-partner]").value = s.partner || "";
+  document.querySelector("[data-f-back]").value = s.back || "";
+  document.querySelector("[data-f-note]").value = s.note || "";
+  modal.classList.add("is-on");
+  document.querySelector("[data-f-nick]").focus();
+}
+
+function close() { modal.classList.remove("is-on"); }
+document.querySelector("[data-cancel]").onclick = close;
+modal.onclick = e => { if (e.target === modal) close(); };
+
+document.querySelector("[data-save]").onclick = () => {
+  const item = {
+    nick: document.querySelector("[data-f-nick]").value.trim(),
+    state: document.querySelector("[data-f-state]").value,
+    partner: document.querySelector("[data-f-partner]").value.trim(),
+    back: document.querySelector("[data-f-back]").value.trim(),
+    note: document.querySelector("[data-f-note]").value.trim()
+  };
+  if (!item.nick) return App.toast("닉네임을 적어주세요.", true);
+  const data = Store.get();
+  if (editIndex < 0) data.status.push(item); else data.status[editIndex] = item;
+  Store.set(data);
+  close(); render();
+  App.toast("저장했습니다.");
+};
+
+function remove(i) {
+  const data = Store.get();
+  if (!confirm(`${data.status[i].nick}님의 현황을 삭제할까요?`)) return;
+  data.status.splice(i, 1);
+  Store.set(data);
+  render();
+  App.toast("삭제했습니다.");
+}
+
+document.querySelector("[data-filter]").onchange = render;
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>패치노트 · 호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap page">
+  <p class="page__eyebrow">패치노트</p>
+  <h1 class="page__title">무엇이 바뀌었나</h1>
+  <p class="page__desc">봇과 방 규칙이 바뀔 때마다 여기에 적습니다. 최근 것이 맨 위입니다.</p>
+
+  <div class="toolbar">
+    <select class="select" style="max-width:170px" data-filter>
+      <option value="">전체 분류</option>
+      <option>신규 기능 추가</option>
+      <option>오류 수정</option>
+      <option>기존 기능 삭제</option>
+    </select>
+    <input class="input" style="max-width:220px" placeholder="내용 검색" data-search>
+    <span class="toolbar__spacer"></span>
+    <span data-admin-tools></span>
+  </div>
+
+  <div class="card" style="padding:6px 10px" data-wrap>
+    <div class="patches" data-list></div>
+  </div>
+</main>
+
+<!-- 패치노트 입력 창 -->
+<div class="modal" data-modal>
+  <div class="modal__box">
+    <h2 class="modal__title" data-modal-title>패치노트 추가</h2>
+
+    <label class="field"><span class="field__label">패치 날짜 (필수)</span>
+      <input class="input" type="date" data-f-date></label>
+
+    <label class="field"><span class="field__label">패치 분류 (필수)</span>
+      <select class="select" data-f-cat>
+        <option>신규 기능 추가</option>
+        <option>오류 수정</option>
+        <option>기존 기능 삭제</option>
+      </select></label>
+
+    <label class="field"><span class="field__label">버전 (선택)</span>
+      <input class="input" data-f-ver placeholder="예: 1.2.0 — 비워둬도 됩니다"></label>
+
+    <label class="field"><span class="field__label">패치 내용 (필수)</span>
+      <textarea class="textarea" data-f-body style="min-height:120px"
+        placeholder="무엇이 어떻게 바뀌었는지 적어주세요.&#10;줄바꿈도 그대로 보입니다."></textarea></label>
+
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-cancel>취소</button>
+      <button class="btn btn--primary" data-save>저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+App.header("patchnotes.html");
+const admin = App.isAdmin();
+const readOnly = !Store.canWrite;
+const canEdit = admin && !readOnly;
+const listEl = document.querySelector("[data-list]");
+const modal = document.querySelector("[data-modal]");
+let editIndex = -1;
+
+const CAT_CLASS = { "신규 기능 추가": "cat--new", "오류 수정": "cat--fix", "기존 기능 삭제": "cat--del" };
+
+if (admin) {
+  const tools = document.querySelector("[data-admin-tools]");
+  if (readOnly) {
+    tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
+  } else {
+    tools.innerHTML = `<button class="btn btn--primary" data-add>패치노트 추가</button>`;
+    tools.querySelector("[data-add]").onclick = () => open(-1);
+  }
+}
+
+/* 보기 좋은 날짜로 */
+function pretty(d) {
+  const m = (d || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[1]}. ${+m[2]}. ${+m[3]}` : d;
+}
+
+function render() {
+  const cat = document.querySelector("[data-filter]").value;
+  const q = (document.querySelector("[data-search]").value || "").toLowerCase().trim();
+
+  const list = Store.get().patchnotes
+    .map((n, i) => ({ n, i }))
+    .filter(({ n }) => (!cat || n.cat === cat) &&
+      (!q || (n.body + " " + (n.ver || "")).toLowerCase().includes(q)))
+    .sort((a, b) => (b.n.date || "").localeCompare(a.n.date || ""));  // 최신순
+
+  if (!list.length) {
+    listEl.innerHTML = `<div class="empty" style="border:none">
+      <strong>아직 적힌 내용이 없습니다</strong>${canEdit ? "‘패치노트 추가’로 첫 기록을 남겨보세요." : "바뀐 내용이 생기면 운영자가 여기에 적습니다."}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(({ n, i }) => `
+    <article class="patch">
+      <div class="patch__when">
+        <span class="patch__date">${App.esc(pretty(n.date))}</span>
+        ${n.ver ? `<span class="patch__ver">v${App.esc(n.ver)}</span>` : ""}
+      </div>
+      <div class="patch__main">
+        <span class="patch__cat ${CAT_CLASS[n.cat] || "cat--new"}">${App.esc(n.cat)}</span>
+        <p class="patch__body" style="margin:0">${App.esc(n.body)}</p>
+      </div>
+      ${canEdit ? `<span class="patch__tools">
+        <button class="btn btn--sm btn--ghost" data-edit="${i}">수정</button>
+        <button class="btn btn--sm btn--danger" data-del="${i}">삭제</button>
+      </span>` : "<span></span>"}
+    </article>`).join("");
+
+  if (canEdit) {
+    listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => open(+b.dataset.edit));
+    listEl.querySelectorAll("[data-del]").forEach(b => b.onclick = () => remove(+b.dataset.del));
+  }
+}
+
+function open(i) {
+  editIndex = i;
+  const today = new Date();
+  const iso = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
+  const n = i < 0 ? { date: iso, cat: "신규 기능 추가", ver: "", body: "" } : Store.get().patchnotes[i];
+
+  document.querySelector("[data-modal-title]").textContent = i < 0 ? "패치노트 추가" : "패치노트 수정";
+  document.querySelector("[data-f-date]").value = n.date || iso;
+  document.querySelector("[data-f-cat]").value = n.cat || "신규 기능 추가";
+  document.querySelector("[data-f-ver]").value = n.ver || "";
+  document.querySelector("[data-f-body]").value = n.body || "";
+  modal.classList.add("is-on");
+  document.querySelector("[data-f-body]").focus();
+}
+
+function close() { modal.classList.remove("is-on"); }
+document.querySelector("[data-cancel]").onclick = close;
+modal.onclick = e => { if (e.target === modal) close(); };
+
+document.querySelector("[data-save]").onclick = () => {
+  const item = {
+    date: document.querySelector("[data-f-date]").value,
+    cat: document.querySelector("[data-f-cat]").value,
+    ver: document.querySelector("[data-f-ver]").value.trim().replace(/^v/i, ""),
+    body: document.querySelector("[data-f-body]").value.trim()
+  };
+  if (!item.date) return App.toast("패치 날짜를 골라주세요.", true);
+  if (!item.body) return App.toast("패치 내용을 적어주세요.", true);
+
+  const data = Store.get();
+  if (editIndex < 0) data.patchnotes.push(item); else data.patchnotes[editIndex] = item;
+  Store.set(data);
+  close(); render();
+  App.toast(editIndex < 0 ? "패치노트를 남겼습니다." : "수정했습니다.");
+};
+
+function remove(i) {
+  const data = Store.get();
+  if (!confirm(`${pretty(data.patchnotes[i].date)} 패치노트를 삭제할까요?`)) return;
+  data.patchnotes.splice(i, 1);
+  Store.set(data);
+  render();
+  App.toast("삭제했습니다.");
+}
+
+document.querySelector("[data-filter]").onchange = render;
+document.querySelector("[data-search]").oninput = render;
+
+Store.load()
+  .then(render)
+  .catch(e => { render(); App.toast(e.message, true); });
+</script>
+</body>
+</html>

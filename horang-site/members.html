@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>멤버 소개 · 호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap page">
+  <p class="page__eyebrow">멤버 소개</p>
+  <h1 class="page__title">방 사람들 자기소개</h1>
+  <p class="page__desc">닉네임, 나이, 취미부터 이상형까지. 새 인원이 들어오면 운영자가 여기에 추가합니다.</p>
+
+  <div class="toolbar">
+    <input class="input" style="max-width:260px" placeholder="닉네임 · 취미 · MBTI 검색" data-search>
+    <span class="toolbar__spacer"></span>
+    <span data-admin-tools></span>
+  </div>
+
+  <div class="grid grid--2" data-list></div>
+</main>
+
+<!-- 자소서 입력 창 -->
+<div class="modal" data-modal>
+  <div class="modal__box">
+    <h2 class="modal__title" data-modal-title>새 인원 추가</h2>
+    <div data-form></div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-cancel>취소</button>
+      <button class="btn btn--primary" data-save>저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+App.header("members.html");
+const admin = App.isAdmin();
+const readOnly = !Store.canWrite;
+const canEdit = admin && !readOnly;
+const listEl = document.querySelector("[data-list]");
+const modal = document.querySelector("[data-modal]");
+let editIndex = -1;
+
+/* 자소서 양식 — 순서·이름을 여기서 바꾸면 화면과 입력창이 같이 바뀝니다. */
+const FORM = [
+  { k: "nick",   label: "닉네임",          type: "text" },
+  { k: "age",    label: "나이",            type: "text" },
+  { k: "height", label: "키",              type: "text" },
+  { k: "job",    label: "전공 or 직업",     type: "text" },
+  { k: "off",    label: "쉬는 요일",        type: "text" },
+  { k: "hobby",  label: "취미",            type: "text" },
+  { k: "mbti",   label: "MBTI",           type: "text" },
+  { k: "charm",  label: "본인의 매력",      type: "area" },
+  { k: "ideal",  label: "이상형",          type: "area" },
+  { k: "smoke",  label: "흡연유무 & 주량",  type: "text" },
+  { k: "say",    label: "하고싶은 말",      type: "area" }
+];
+
+if (admin) {
+  const tools = document.querySelector("[data-admin-tools]");
+  if (readOnly) {
+    tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
+  } else {
+    tools.innerHTML = `<button class="btn btn--primary" data-add>새 인원 추가</button>`;
+    tools.querySelector("[data-add]").onclick = () => open(-1);
+  }
+}
+
+function render() {
+  const q = (document.querySelector("[data-search]").value || "").toLowerCase().trim();
+  const all = Store.get().members;
+  const list = all.map((m, i) => ({ m, i }))
+    .filter(({ m }) => !q || Object.values(m).join(" ").toLowerCase().includes(q));
+
+  if (!list.length) {
+    listEl.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <strong>보여줄 사람이 없습니다</strong>${canEdit ? "‘새 인원 추가’로 첫 소개를 등록해 보세요." : "운영자가 등록하면 여기에 나타납니다."}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(({ m, i }) => `
+    <article class="card member">
+      <div class="member__top">
+        <span class="member__nick">${App.esc(m.nick)}</span>
+        <span class="member__meta">${[m.age && m.age + "세", m.height && m.height + "cm"].filter(Boolean).map(App.esc).join(" · ")}</span>
+        ${m.mbti ? `<span class="member__mbti">${App.esc(m.mbti)}</span>` : ""}
+      </div>
+      <div class="rows">
+        ${FORM.filter(f => !["nick", "age", "height", "mbti"].includes(f.k) && m[f.k])
+          .map(f => `<div class="row"><span class="row__k">${f.label}</span><span class="row__v">${App.esc(m[f.k])}</span></div>`)
+          .join("")}
+      </div>
+      ${canEdit ? `<div class="member__tools">
+        <button class="btn btn--sm btn--ghost" data-edit="${i}">수정</button>
+        <button class="btn btn--sm btn--danger" data-del="${i}">삭제</button>
+      </div>` : ""}
+    </article>`).join("");
+
+  if (canEdit) {
+    listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => open(+b.dataset.edit));
+    listEl.querySelectorAll("[data-del]").forEach(b => b.onclick = () => remove(+b.dataset.del));
+  }
+}
+
+function open(i) {
+  editIndex = i;
+  const m = i < 0 ? {} : Store.get().members[i];
+  document.querySelector("[data-modal-title]").textContent = i < 0 ? "새 인원 추가" : App.esc(m.nick) + " 수정";
+  document.querySelector("[data-form]").innerHTML = FORM.map(f => `
+    <label class="field"><span class="field__label">${f.label}</span>
+      ${f.type === "area"
+        ? `<textarea class="textarea" data-k="${f.k}">${App.esc(m[f.k] || "")}</textarea>`
+        : `<input class="input" data-k="${f.k}" value="${App.esc(m[f.k] || "")}">`}
+    </label>`).join("");
+  modal.classList.add("is-on");
+  modal.querySelector("[data-k]").focus();
+}
+
+function close() { modal.classList.remove("is-on"); }
+document.querySelector("[data-cancel]").onclick = close;
+modal.onclick = e => { if (e.target === modal) close(); };
+
+document.querySelector("[data-save]").onclick = () => {
+  const item = {};
+  modal.querySelectorAll("[data-k]").forEach(el => item[el.dataset.k] = el.value.trim());
+  if (!item.nick) return App.toast("닉네임은 반드시 적어주세요.", true);
+  const data = Store.get();
+  if (editIndex < 0) data.members.push(item); else data.members[editIndex] = item;
+  Store.set(data);
+  close(); render();
+  App.toast(editIndex < 0 ? item.nick + "님을 추가했습니다." : "수정했습니다.");
+};
+
+function remove(i) {
+  const data = Store.get();
+  if (!confirm(`${data.members[i].nick}님의 소개를 삭제할까요?`)) return;
+  data.members.splice(i, 1);
+  Store.set(data);
+  render();
+  App.toast("삭제했습니다.");
+}
+
+document.querySelector("[data-search]").oninput = render;
+
+/* 서버 모드면 데이터를 받아온 뒤 그립니다. 아니면 즉시 그립니다. */
+Store.load()
+  .then(render)
+  .catch(e => { render(); App.toast(e.message, true); });
+</script>
+</body>
+</html>

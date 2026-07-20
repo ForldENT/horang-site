@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테마 실험실 · 호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* 이 페이지에서만 쓰는 스타일입니다. 배포할 때 지워도 사이트는 잘 돌아갑니다. */
+  .lab { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
+  .lab__panel { position: sticky; top: 78px; }
+  .pick { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .pick input[type=color] {
+    width: 34px; height: 30px; padding: 0; border: 1px solid var(--line);
+    border-radius: 7px; background: none; cursor: pointer;
+  }
+  .pick__name { font-size: 13px; font-weight: 700; flex: 1; }
+  .pick__hex { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); }
+  .preset { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
+  .preset button { display: flex; gap: 3px; align-items: center; }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; }
+  .out { font-family: var(--font-mono); font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto; }
+  @media (max-width: 820px) { .lab { grid-template-columns: 1fr; } .lab__panel { position: static; } }
+</style>
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap page">
+  <p class="page__eyebrow">테마 실험실</p>
+  <h1 class="page__title">색을 고르고, CSS를 복사해 가세요</h1>
+  <p class="page__desc">
+    왼쪽에서 색을 바꾸면 오른쪽 미리보기가 바로 바뀝니다.
+    마음에 들면 맨 아래 <strong>CSS 복사</strong>를 눌러 <code>assets/style.css</code> 맨 위 <code>:root</code>에 덮어쓰면 됩니다.
+  </p>
+
+  <div class="lab">
+    <!-- 조작 패널 -->
+    <div class="lab__panel">
+      <div class="card">
+        <h2 style="font-size:15px;margin-bottom:12px">완성된 테마</h2>
+        <div class="preset" data-presets></div>
+
+        <h2 style="font-size:15px;margin:18px 0 12px">색 하나씩 고르기</h2>
+        <div data-picks></div>
+
+        <h2 style="font-size:15px;margin:18px 0 10px">모서리 둥글기</h2>
+        <input type="range" min="0" max="26" step="1" value="14" data-radius style="width:100%">
+        <p class="page__desc" style="margin:4px 0 0;font-size:12.5px">
+          0이면 각진 느낌, 22 이상이면 말랑한 느낌이 납니다.
+        </p>
+
+        <div class="toolbar" style="margin:18px 0 0">
+          <button class="btn btn--primary" data-copy>CSS 복사</button>
+          <button class="btn btn--ghost" data-reset>처음으로</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <h2 style="font-size:15px;margin-bottom:14px">명령어 화면</h2>
+        <div class="cmds">
+          <div class="cmds__group">신입 안내</div>
+          <div class="cmd">
+            <span class="cmd__key">/신입</span>
+            <span class="cmd__desc">신입 가이드를 시작합니다.</span><span></span>
+          </div>
+          <div class="cmd">
+            <span class="cmd__key">/1 ~ /5</span>
+            <span class="cmd__desc">가이드를 단계별로 실행합니다.</span><span></span>
+          </div>
+          <div class="cmds__group">운영</div>
+          <div class="cmd">
+            <span class="cmd__key">/쉿</span>
+            <span class="cmd__desc">채팅 통제를 시작합니다.<span class="tag tag--admin">운영자 전용</span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid--2" style="margin-bottom:14px">
+        <article class="card member">
+          <div class="member__top">
+            <span class="member__nick">호랑</span>
+            <span class="member__meta">30세 · 178cm</span>
+            <span class="member__mbti">ENTJ</span>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="row__k">전공 or 직업</span><span class="row__v">게임 개발</span></div>
+            <div class="row"><span class="row__k">취미</span><span class="row__v">헬스, 게임</span></div>
+            <div class="row"><span class="row__k">이상형</span><span class="row__v">웃음 많은 사람</span></div>
+          </div>
+          <div class="member__tools">
+            <button class="btn btn--sm btn--ghost">수정</button>
+            <button class="btn btn--sm btn--danger">삭제</button>
+          </div>
+        </article>
+
+        <div style="display:grid;gap:14px;align-content:start">
+          <article class="card state--매칭">
+            <div class="status">
+              <span class="status__dot"></span>
+              <span class="status__nick">호랑</span>
+              <span class="status__label">매칭 · 하늘님과</span>
+            </div>
+            <p class="status__note">어제 저녁부터</p>
+          </article>
+          <article class="card state--외출">
+            <div class="status">
+              <span class="status__dot"></span>
+              <span class="status__nick">하늘</span>
+              <span class="status__label">외출</span>
+            </div>
+            <p class="status__note">복귀 예정 · 오늘 22시</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:15px;margin-bottom:12px">복사될 CSS</h2>
+        <div class="out" data-out></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+App.header("");
+
+const VARS = [
+  ["--bg",       "배경",            "#12141B"],
+  ["--panel",    "카드 배경",        "#1B1F29"],
+  ["--panel-2",  "카드 안쪽 · 입력창", "#232836"],
+  ["--line",     "경계선",          "#2E3444"],
+  ["--text",     "본문 글자",        "#E8EBF3"],
+  ["--text-dim", "흐린 글자",        "#8B93A7"],
+  ["--accent",   "강조 (명령어 말풍선)", "#FF5C7A"],
+  ["--accent-2", "보조 (매칭 상태)",  "#5FE1C0"],
+  ["--warn",     "외출 상태",        "#FFC24B"]
+];
+
+const PRESETS = {
+  "밤 채팅방 (기본)": ["#12141B","#1B1F29","#232836","#2E3444","#E8EBF3","#8B93A7","#FF5C7A","#5FE1C0","#FFC24B"],
+  "카톡 라이트":     ["#F2F3F7","#FFFFFF","#EDEFF5","#DCE0EA","#1B1D24","#7B8194","#3B5BFF","#00B383","#E08A00"],
+  "심야 보라":       ["#15111F","#1F1930","#2A2240","#372C52","#EDE6FA","#9E93B8","#B47CFF","#4FD6E8","#FFB454"],
+  "숲속 새벽":       ["#101714","#18211D","#1F2A25","#2B3830","#E6EEE8","#8AA096","#E9765B","#7FD48A","#EBC55C"]
+};
+
+const state = {};
+VARS.forEach(([k, , d]) => state[k] = d);
+let radius = 14;
+
+/* 미리보기는 이 페이지 안에서만 바뀝니다 */
+function apply() {
+  VARS.forEach(([k]) => document.documentElement.style.setProperty(k, state[k]));
+  document.documentElement.style.setProperty("--radius", radius + "px");
+  document.documentElement.style.setProperty("--radius-sm", Math.max(0, Math.round(radius * 0.64)) + "px");
+  document.querySelectorAll("[data-hex]").forEach(el => el.textContent = state[el.dataset.hex]);
+  document.querySelector("[data-out]").textContent = css();
+}
+
+function css() {
+  return ":root {\n" +
+    VARS.map(([k, name]) => `  ${k}:${" ".repeat(Math.max(1, 11 - k.length))}${state[k]};   /* ${name} */`).join("\n") +
+    `\n  --radius: ${radius}px;\n  --radius-sm: ${Math.max(0, Math.round(radius * 0.64))}px;\n}`;
+}
+
+/* 색 고르기 줄 만들기 */
+document.querySelector("[data-picks]").innerHTML = VARS.map(([k, name]) => `
+  <label class="pick">
+    <input type="color" value="${state[k]}" data-var="${k}">
+    <span class="pick__name">${name}</span>
+    <span class="pick__hex" data-hex="${k}"></span>
+  </label>`).join("");
+
+document.querySelectorAll("[data-var]").forEach(inp => {
+  inp.oninput = () => { state[inp.dataset.var] = inp.value.toUpperCase(); apply(); };
+});
+
+/* 완성 테마 버튼 */
+document.querySelector("[data-presets]").innerHTML = Object.entries(PRESETS).map(([name, cols]) => `
+  <button class="btn btn--sm" data-preset="${name}">
+    <span class="swatch" style="background:${cols[0]}"></span>
+    <span class="swatch" style="background:${cols[6]}"></span>
+    <span class="swatch" style="background:${cols[7]}"></span>
+    ${name}
+  </button>`).join("");
+
+document.querySelectorAll("[data-preset]").forEach(b => {
+  b.onclick = () => {
+    PRESETS[b.dataset.preset].forEach((c, i) => state[VARS[i][0]] = c.toUpperCase());
+    document.querySelectorAll("[data-var]").forEach(inp => inp.value = state[inp.dataset.var]);
+    apply();
+    App.toast(b.dataset.preset + " 테마를 입혔습니다.");
+  };
+});
+
+document.querySelector("[data-radius]").oninput = e => { radius = +e.target.value; apply(); };
+
+document.querySelector("[data-copy]").onclick = async () => {
+  try { await navigator.clipboard.writeText(css()); App.toast("CSS를 복사했습니다."); }
+  catch (e) { App.toast("복사가 막혀 있습니다. 아래 CSS를 직접 선택해 주세요.", true); }
+};
+
+document.querySelector("[data-reset]").onclick = () => {
+  VARS.forEach(([k, , d]) => state[k] = d);
+  radius = 14;
+  document.querySelector("[data-radius]").value = 14;
+  document.querySelectorAll("[data-var]").forEach(inp => inp.value = state[inp.dataset.var]);
+  apply();
+};
+
+apply();
+</script>
+</body>
+</html>

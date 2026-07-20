@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>명령어 · 호랑봇 안내소</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="header"><div class="header__inner" data-header></div></header>
+
+<main class="wrap page">
+  <p class="page__eyebrow">명령어</p>
+  <h1 class="page__title">봇에게 이렇게 말하면 됩니다</h1>
+  <p class="page__desc">왼쪽이 채팅에 그대로 치는 말, 오른쪽이 그때 봇이 해주는 일입니다.</p>
+
+  <div class="toolbar">
+    <input class="input" style="max-width:260px" placeholder="명령어 검색" data-search>
+    <select class="select" style="max-width:150px" data-cat></select>
+    <span class="toolbar__spacer"></span>
+    <span data-admin-tools></span>
+  </div>
+
+  <div class="log" data-log></div>
+</main>
+
+<!-- 명령어 추가/수정 창 -->
+<div class="modal" data-modal>
+  <div class="modal__box">
+    <h2 class="modal__title" data-modal-title>명령어 추가</h2>
+    <label class="field"><span class="field__label">명령어</span>
+      <input class="input" data-f-cmd placeholder="/도움말"></label>
+    <label class="field"><span class="field__label">설명</span>
+      <textarea class="textarea" data-f-desc placeholder="이 명령어를 치면 무슨 일이 생기는지 적어주세요."></textarea></label>
+    <label class="field"><span class="field__label">분류</span>
+      <input class="input" data-f-cat placeholder="온보딩 / 운영 / 재미 …"></label>
+    <label class="field" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" data-f-admin>
+      <span class="field__label" style="margin:0">운영자만 쓰는 명령어</span></label>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-cancel>취소</button>
+      <button class="btn btn--primary" data-save>저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+<script>
+App.header("commands.html");
+const admin = App.isAdmin();
+const readOnly = !Store.canWrite;   // 읽기 전용 시트면 사이트에서 수정 못 함
+const canEdit = admin && !readOnly;
+const logEl = document.querySelector("[data-log]");
+const modal = document.querySelector("[data-modal]");
+let editIndex = -1;
+
+/* ---------- 관리자 버튼 ---------- */
+if (admin) {
+  const tools = document.querySelector("[data-admin-tools]");
+  if (readOnly) {
+    tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
+  } else {
+    tools.innerHTML = `<button class="btn btn--primary" data-add>명령어 추가</button>`;
+    tools.querySelector("[data-add]").onclick = () => open(-1);
+  }
+}
+
+/* ---------- 그리기 ---------- */
+function render() {
+  const q = (document.querySelector("[data-search]").value || "").toLowerCase().trim();
+  const cat = document.querySelector("[data-cat]").value;
+  const all = Store.get().commands;
+
+  // 분류 목록 채우기
+  const sel = document.querySelector("[data-cat]");
+  if (!sel.dataset.filled) {
+    const cats = [...new Set(all.map(c => c.cat).filter(Boolean))];
+    sel.innerHTML = '<option value="">전체 분류</option>' +
+      cats.map(c => `<option>${App.esc(c)}</option>`).join("");
+    sel.dataset.filled = "1";
+  }
+
+  const list = all
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) =>
+      (!cat || c.cat === cat) &&
+      (!q || (c.cmd + " " + c.desc).toLowerCase().includes(q)));
+
+  if (!list.length) {
+    logEl.innerHTML = `<div class="empty"><strong>찾는 명령어가 없습니다</strong>다른 말로 검색해 보세요.</div>`;
+    return;
+  }
+
+  let last = null, html = '<div class="cmds">';
+  list.forEach(({ c, i }) => {
+    if (c.cat !== last) { html += `<div class="cmds__group">${App.esc(c.cat || "기타")}</div>`; last = c.cat; }
+    html += `
+      <div class="cmd">
+        <span class="cmd__key">${App.esc(c.cmd)}</span>
+        <span class="cmd__desc">${App.esc(c.desc)}${c.admin ? '<span class="tag tag--admin">운영자 전용</span>' : ""}</span>
+        ${canEdit ? `<span class="cmd__tools">
+          <button class="btn btn--sm btn--ghost" data-edit="${i}">수정</button>
+          <button class="btn btn--sm btn--danger" data-del="${i}">삭제</button>
+        </span>` : "<span></span>"}
+      </div>`;
+  });
+  logEl.innerHTML = html + "</div>";
+
+  if (canEdit) {
+    logEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => open(+b.dataset.edit));
+    logEl.querySelectorAll("[data-del]").forEach(b => b.onclick = () => remove(+b.dataset.del));
+  }
+}
+
+/* ---------- 추가 / 수정 ---------- */
+function open(i) {
+  editIndex = i;
+  const c = i < 0 ? { cmd: "", desc: "", cat: "", admin: false } : Store.get().commands[i];
+  document.querySelector("[data-modal-title]").textContent = i < 0 ? "명령어 추가" : "명령어 수정";
+  document.querySelector("[data-f-cmd]").value = c.cmd;
+  document.querySelector("[data-f-desc]").value = c.desc;
+  document.querySelector("[data-f-cat]").value = c.cat || "";
+  document.querySelector("[data-f-admin]").checked = !!c.admin;
+  modal.classList.add("is-on");
+  document.querySelector("[data-f-cmd]").focus();
+}
+
+function close() { modal.classList.remove("is-on"); }
+
+document.querySelector("[data-cancel]").onclick = close;
+modal.onclick = e => { if (e.target === modal) close(); };
+
+document.querySelector("[data-save]").onclick = () => {
+  const item = {
+    cmd: document.querySelector("[data-f-cmd]").value.trim(),
+    desc: document.querySelector("[data-f-desc]").value.trim(),
+    cat: document.querySelector("[data-f-cat]").value.trim() || "기타",
+    admin: document.querySelector("[data-f-admin]").checked
+  };
+  if (!item.cmd) return App.toast("명령어를 적어주세요.", true);
+  const data = Store.get();
+  if (editIndex < 0) data.commands.push(item); else data.commands[editIndex] = item;
+  Store.set(data);
+  document.querySelector("[data-cat]").dataset.filled = "";
+  close(); render();
+  App.toast(editIndex < 0 ? "명령어를 추가했습니다." : "명령어를 수정했습니다.");
+};
+
+function remove(i) {
+  const data = Store.get();
+  if (!confirm(`"${data.commands[i].cmd}" 을(를) 삭제할까요?`)) return;
+  data.commands.splice(i, 1);
+  Store.set(data);
+  render();
+  App.toast("삭제했습니다.");
+}
+
+document.querySelector("[data-search]").oninput = render;
+document.querySelector("[data-cat]").onchange = render;
+
+/* 서버 모드면 데이터를 받아온 뒤 그립니다. 아니면 즉시 그립니다. */
+Store.load()
+  .then(render)
+  .catch(e => { render(); App.toast(e.message, true); });
+</script>
+</body>
+</html>

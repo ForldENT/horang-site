@@ -45,6 +45,7 @@ git push
   - 명령어만: `.../horang-site/commands.html`
   - 멤버 소개만: `.../horang-site/members.html`
   - 매칭·외출만: `.../horang-site/status.html`
+  - 패치노트만: `.../horang-site/patchnotes.html`
 
 ---
 

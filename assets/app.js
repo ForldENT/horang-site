@@ -55,7 +55,8 @@
       ["index.html", "홈"],
       ["commands.html", "명령어"],
       ["members.html", "멤버 소개"],
-      ["status.html", "매칭 · 외출"]
+      ["status.html", "매칭 · 외출"],
+      ["patchnotes.html", "패치노트"]
     ];
     const el = document.querySelector("[data-header]");
     if (!el) return;

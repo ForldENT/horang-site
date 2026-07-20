@@ -68,18 +68,30 @@
     ],
     status: [
       { nick: "호랑", state: "외출", partner: "", back: "오늘 22시", note: "저녁 약속" }
+    ],
+    patchnotes: [
+      { date: "2026-07-20", cat: "신규 기능 추가", ver: "1.0.0", body: "안내소 사이트를 열었습니다. 명령어, 멤버 소개, 매칭·외출 현황을 볼 수 있습니다." }
     ]
   };
 
+  /* 예전에 저장된 내용에 빠진 항목이 있어도 화면이 깨지지 않게 채워줍니다. */
+  function normalize(d) {
+    d = d || {};
+    ["commands", "members", "status", "patchnotes"].forEach(k => {
+      if (!Array.isArray(d[k])) d[k] = [];
+    });
+    return d;
+  }
+
   function read() {
     if (cache) return cache;
-    if (useSheet) return { commands: [], members: [], status: [] }; // load() 전
+    if (useSheet) return normalize({}); // load() 전
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return normalize(JSON.parse(raw));
     } catch (e) { /* 저장소 사용 불가 */ }
     if (memory) return memory;
-    return JSON.parse(JSON.stringify(SEED));
+    return normalize(JSON.parse(JSON.stringify(SEED)));
   }
 
   /* 시트 모드에서는 쓰지 않습니다. 수정은 시트에서 합니다. */
@@ -139,10 +151,11 @@
     if (!useSheet) return read();
 
     const tabs = CONFIG.SHEETS || {};
-    const [c, m, st] = await Promise.all([
+    const [c, m, st, pn] = await Promise.all([
       tabs.commands ? fetchTab(tabs.commands) : [],
       tabs.members ? fetchTab(tabs.members) : [],
-      tabs.status ? fetchTab(tabs.status) : []
+      tabs.status ? fetchTab(tabs.status) : [],
+      tabs.patchnotes ? fetchTab(tabs.patchnotes) : []
     ]);
 
     cache = {
@@ -160,13 +173,40 @@
       status: st.map(r => ({
         nick: r[0] || "", state: (r[1] || "매칭").indexOf("외출") >= 0 ? "외출" : "매칭",
         partner: r[2] || "", back: r[3] || "", note: r[4] || ""
-      })).filter(x => x.nick)
+      })).filter(x => x.nick),
+
+      patchnotes: pn.map(r => ({
+        date: normDate(r[0]), cat: normCat(r[1]), ver: r[2] || "", body: r[3] || ""
+      })).filter(x => x.date && x.body)
     };
     return cache;
   }
 
+  /* 패치 분류는 세 가지로 고정합니다. */
+  const CATS = ["오류 수정", "신규 기능 추가", "기존 기능 삭제"];
+
+  function normCat(v) {
+    v = (v || "").trim();
+    if (CATS.indexOf(v) >= 0) return v;
+    if (/오류|버그|수정|fix/i.test(v)) return "오류 수정";
+    if (/삭제|제거|중단|remove/i.test(v)) return "기존 기능 삭제";
+    return "신규 기능 추가";
+  }
+
+  /* 2026-07-20 / 2026.7.20 / 2026년 7월 20일 을 모두 받아줍니다. */
+  function normDate(v) {
+    v = (v || "").trim();
+    if (!v) return "";
+    const m = v.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    if (!m) return v;
+    return m[1] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[3]).slice(-2);
+  }
+
   window.Store = {
     get: read,
+    CATS: CATS,
+    normCat: normCat,
+    normDate: normDate,
     set: write,
     load: load,
     useSheet: useSheet,
@@ -212,6 +252,10 @@
       if (which === "members") {
         return ["닉네임,나이,키,전공 or 직업,쉬는 요일,취미,MBTI,본인의 매력,이상형,흡연유무 & 주량,하고싶은 말"].concat(
           d.members.map(m => [m.nick, m.age, m.height, m.job, m.off, m.hobby, m.mbti, m.charm, m.ideal, m.smoke, m.say].map(q).join(","))).join("\n");
+      }
+      if (which === "patchnotes") {
+        return ["날짜,분류,버전,내용"].concat(
+          d.patchnotes.map(n => [n.date, n.cat, n.ver, n.body].map(q).join(","))).join("\n");
       }
       return ["닉네임,상태,상대,복귀 예정,메모"].concat(
         d.status.map(x => [x.nick, x.state, x.partner, x.back, x.note].map(q).join(","))).join("\n");

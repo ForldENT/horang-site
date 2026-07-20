@@ -28,7 +28,8 @@ window.CONFIG = {
   SHEETS: {
     commands: "명령어",
     members: "멤버",
-    status: "현황"
+    status: "현황",
+    patchnotes: "패치노트"
   },
 
   /* 시트를 안 쓰고 사이트에서 직접 관리하려면 SHEET_ID 를 비워두세요. */

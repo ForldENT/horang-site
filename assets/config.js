@@ -28,7 +28,7 @@ window.CONFIG = {
 
   /* Apps Script 를 배포하고 받은 주소 (.../exec 로 끝납니다)
      비워두면 읽기 전용으로 동작합니다. */
-  SCRIPT_URL: "",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyNp-2YcxVnQvJ__YnrP9gI6PqV1Wr9Oj4AKMcaMAEqzzUC0KNxxAemtqv6Mu-Wf-746g/exec",
 
   /* 각 화면이 쓸 탭(시트) 이름 — 시트의 탭 이름과 정확히 같아야 합니다 */
   SHEETS: {

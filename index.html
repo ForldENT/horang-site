@@ -81,10 +81,13 @@
         </div>
       </div>`;
 
-    box.querySelector("[data-mode]").innerHTML = Store.useSheet
-      ? '내용은 구글 시트에서 관리합니다. 시트를 고치면 이 사이트에 바로 반영됩니다. '
-        + '<a href="' + Store.sheetEditUrl() + '" target="_blank" rel="noopener" style="color:var(--accent-2)">시트 열기</a>'
-      : "세 페이지 모두 추가 · 수정 · 삭제 버튼이 보입니다. 아래 주소를 방에 공유하면 사람들은 보기만 할 수 있습니다.";
+    const sheetLink = '<a href="' + Store.sheetEditUrl() + '" target="_blank" rel="noopener" style="color:var(--accent-2)">시트 열기</a>';
+    const modeText = {
+      script: "각 화면에서 추가 · 수정 · 삭제하면 구글 시트에 자동으로 저장됩니다. " + sheetLink,
+      sheet: "내용은 구글 시트에서 관리합니다. 시트를 고치면 이 사이트에 바로 반영됩니다. " + sheetLink,
+      local: "각 화면에 추가 · 수정 · 삭제 버튼이 보입니다. 다만 지금은 이 브라우저에만 저장되니, 다른 사람에게 보여주려면 시트를 연결하세요."
+    };
+    box.querySelector("[data-mode]").innerHTML = modeText[Store.MODE];
 
     const share = location.href.split("?")[0];
     box.querySelector("[data-share]").value = share;

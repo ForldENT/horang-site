@@ -22,8 +22,13 @@
   const params = new URLSearchParams(location.search);
   if (params.get("key")) {
     try {
-      if (params.get("key") === CONFIG.ADMIN_KEY) sessionStorage.setItem(SESSION, "1");
-      else sessionStorage.removeItem(SESSION);
+      if (params.get("key") === CONFIG.ADMIN_KEY) {
+        sessionStorage.setItem(SESSION, "1");
+        sessionStorage.setItem("horang.key", params.get("key")); // 시트 저장 요청에 함께 보냅니다
+      } else {
+        sessionStorage.removeItem(SESSION);
+        sessionStorage.removeItem("horang.key");
+      }
     } catch (e) {}
   }
 
@@ -78,7 +83,7 @@
     `;
     const out = el.querySelector("[data-logout]");
     if (out) out.onclick = () => {
-      try { sessionStorage.removeItem(SESSION); } catch (e) {}
+      try { sessionStorage.removeItem(SESSION); sessionStorage.removeItem("horang.key"); } catch (e) {}
       location.href = "index.html";
     };
   }

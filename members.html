@@ -42,8 +42,8 @@
 <script>
 App.header("members.html");
 const admin = App.isAdmin();
-const sheet = Store.useSheet;
-const canEdit = admin && !sheet;
+const readOnly = !Store.canWrite;
+const canEdit = admin && !readOnly;
 const listEl = document.querySelector("[data-list]");
 const modal = document.querySelector("[data-modal]");
 let editIndex = -1;
@@ -65,7 +65,7 @@ const FORM = [
 
 if (admin) {
   const tools = document.querySelector("[data-admin-tools]");
-  if (sheet) {
+  if (readOnly) {
     tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
   } else {
     tools.innerHTML = `<button class="btn btn--primary" data-add>새 인원 추가</button>`;

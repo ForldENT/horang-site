@@ -1,22 +1,25 @@
 /* ============================================================
-   store.js — 데이터 저장/불러오기
-   저장 위치: 브라우저 localStorage (없으면 메모리)
+   store.js — 데이터 읽기 / 쓰기
+
+   동작 모드는 config.js 가 정합니다.
+     SCRIPT_URL 있음  → 구글 시트 읽기 + 쓰기 (Apps Script)
+     SHEET_ID 만 있음 → 구글 시트 읽기 전용 (CSV)
+     둘 다 없음        → 이 브라우저에만 저장 (localStorage)
    ============================================================ */
 
 (function () {
   const KEY = "horang.data.v1";
-  let memory = null;   // localStorage를 못 쓰는 환경용 대체 저장소
-  let cache = null;    // 시트에서 받아온 내용을 담아두는 곳
+  let memory = null;
+  let cache = null;
 
-  /* 시트 모드 — config.js 의 SHEET_ID 가 채워져 있으면 시트가 원본입니다. */
-  const SHEET_ID = (window.CONFIG && CONFIG.SHEET_ID || "").trim();
-  const useSheet = !!SHEET_ID;
+  const SHEET_ID   = (window.CONFIG && CONFIG.SHEET_ID   || "").trim();
+  const SCRIPT_URL = (window.CONFIG && CONFIG.SCRIPT_URL || "").trim();
 
-  /* 탭 하나를 CSV로 읽어오는 주소 */
-  function sheetUrl(tab) {
-    return "https://docs.google.com/spreadsheets/d/" + SHEET_ID
-      + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tab)
-      + "&_=" + Date.now();   // 브라우저가 옛 내용을 재활용하지 않도록
+  const MODE = SCRIPT_URL ? "script" : (SHEET_ID ? "sheet" : "local");
+  const canWrite = MODE !== "sheet";   // 읽기 전용 시트일 때만 수정 불가
+
+  function adminKey() {
+    try { return sessionStorage.getItem("horang.key") || ""; } catch (e) { return ""; }
   }
 
   const SEED = {
@@ -74,7 +77,8 @@
     ]
   };
 
-  /* 예전에 저장된 내용에 빠진 항목이 있어도 화면이 깨지지 않게 채워줍니다. */
+
+  /* 빠진 항목이 있어도 화면이 깨지지 않게 채워줍니다. */
   function normalize(d) {
     d = d || {};
     ["commands", "members", "status", "patchnotes"].forEach(k => {
@@ -83,9 +87,78 @@
     return d;
   }
 
+  /* ---------- 분류 · 날짜 정리 ---------- */
+  const CATS = ["오류 수정", "신규 기능 추가", "기존 기능 삭제"];
+
+  function normCat(v) {
+    v = (v || "").trim();
+    if (CATS.indexOf(v) >= 0) return v;
+    if (/오류|버그|수정|fix/i.test(v)) return "오류 수정";
+    if (/삭제|제거|중단|remove/i.test(v)) return "기존 기능 삭제";
+    return "신규 기능 추가";
+  }
+
+  function normDate(v) {
+    v = (v || "").trim();
+    if (!v) return "";
+    const m = v.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    if (!m) return v;
+    return m[1] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[3]).slice(-2);
+  }
+
+  /* ---------- 표의 줄 ↔ 화면에 쓰는 값 ---------- */
+  const MAP = {
+    commands: {
+      head: ["명령어", "설명", "분류", "관리자전용"],
+      toObj: r => ({ cmd: r[0] || "", desc: r[1] || "", cat: r[2] || "기타",
+                     admin: /^(y|yes|true|o|ㅇ|관리자|운영자)$/i.test(r[3] || "") }),
+      toRow: c => [c.cmd, c.desc, c.cat, c.admin ? "Y" : "N"],
+      keep: x => !!x.cmd
+    },
+    members: {
+      head: ["닉네임", "나이", "키", "전공 or 직업", "쉬는 요일", "취미", "MBTI",
+             "본인의 매력", "이상형", "흡연유무 & 주량", "하고싶은 말"],
+      toObj: r => ({ nick: r[0] || "", age: r[1] || "", height: r[2] || "", job: r[3] || "",
+                     off: r[4] || "", hobby: r[5] || "", mbti: r[6] || "", charm: r[7] || "",
+                     ideal: r[8] || "", smoke: r[9] || "", say: r[10] || "" }),
+      toRow: m => [m.nick, m.age, m.height, m.job, m.off, m.hobby, m.mbti, m.charm, m.ideal, m.smoke, m.say],
+      keep: x => !!x.nick
+    },
+    status: {
+      head: ["닉네임", "상태", "상대", "복귀 예정", "메모"],
+      toObj: r => ({ nick: r[0] || "", state: (r[1] || "매칭").indexOf("외출") >= 0 ? "외출" : "매칭",
+                     partner: r[2] || "", back: r[3] || "", note: r[4] || "" }),
+      toRow: s => [s.nick, s.state, s.partner, s.back, s.note],
+      keep: x => !!x.nick
+    },
+    patchnotes: {
+      head: ["날짜", "분류", "버전", "내용"],
+      toObj: r => ({ date: normDate(r[0]), cat: normCat(r[1]), ver: r[2] || "", body: r[3] || "" }),
+      toRow: n => [n.date, n.cat, n.ver, n.body],
+      keep: x => !!x.date && !!x.body
+    }
+  };
+
+  const KINDS = Object.keys(MAP);
+
+  function rowsToData(raw) {
+    const out = {};
+    KINDS.forEach(k => {
+      out[k] = (raw[k] || []).map(MAP[k].toObj).filter(MAP[k].keep);
+    });
+    return out;
+  }
+
+  function dataToRows(d) {
+    const out = {};
+    KINDS.forEach(k => { out[k] = (d[k] || []).map(MAP[k].toRow); });
+    return out;
+  }
+
+  /* ---------- 읽기 ---------- */
   function read() {
     if (cache) return cache;
-    if (useSheet) return normalize({}); // load() 전
+    if (MODE !== "local") return normalize({});   // load() 전
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) return normalize(JSON.parse(raw));
@@ -94,20 +167,7 @@
     return normalize(JSON.parse(JSON.stringify(SEED)));
   }
 
-  /* 시트 모드에서는 쓰지 않습니다. 수정은 시트에서 합니다. */
-  function write(data) {
-    if (useSheet) return false;
-    cache = data;
-    memory = data;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(data));
-      return true;
-    } catch (e) {
-      return false; // 메모리에는 남아있음 (새로고침하면 사라짐)
-    }
-  }
-
-  /* ---------- CSV 읽기 ---------- */
+  /* ---------- CSV (읽기 전용 모드) ---------- */
   function parseCSV(text) {
     const rows = [];
     let row = [], cell = "", quoted = false;
@@ -128,95 +188,94 @@
     return rows.filter(r => r.some(v => v.trim() !== ""));
   }
 
-  /* 탭 하나를 읽어 제목 줄을 뺀 배열로 돌려줍니다. */
   async function fetchTab(tab) {
+    const url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID
+      + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tab) + "&_=" + Date.now();
     let res;
-    try {
-      res = await fetch(sheetUrl(tab), { cache: "no-store" });
-    } catch (e) {
-      throw new Error("시트에 연결하지 못했습니다. 공유 설정을 확인해 주세요.");
-    }
+    try { res = await fetch(url, { cache: "no-store" }); }
+    catch (e) { throw new Error("시트에 연결하지 못했습니다. 공유 설정을 확인해 주세요."); }
     if (!res.ok) {
       throw new Error(res.status === 404
         ? "\"" + tab + "\" 탭을 찾지 못했습니다. 탭 이름을 확인해 주세요."
-        : "시트를 불러오지 못했습니다. (" + res.status + ") 공유 설정이 '링크가 있는 모든 사용자'인지 확인해 주세요.");
+        : "시트를 불러오지 못했습니다. (" + res.status + ") 공유가 '링크가 있는 모든 사용자'인지 확인해 주세요.");
     }
-    const rows = parseCSV(await res.text());
-    return rows.slice(1).map(r => r.map(v => (v || "").trim()));
+    return parseCSV(await res.text()).slice(1).map(r => r.map(v => (v || "").trim()));
   }
 
-  /* 페이지가 열릴 때마다 시트를 새로 읽습니다.
-     시트를 안 쓰면 저장돼 있던 내용을 그대로 돌려줍니다. */
+  /* ---------- 불러오기 ---------- */
   async function load() {
-    if (!useSheet) return read();
+    if (MODE === "local") return read();
+
+    if (MODE === "script") {
+      let res, j;
+      try {
+        res = await fetch(SCRIPT_URL + "?action=read&_=" + Date.now(), { redirect: "follow" });
+        j = await res.json();
+      } catch (e) {
+        throw new Error("시트를 불러오지 못했습니다. Apps Script 주소와 배포 권한을 확인해 주세요.");
+      }
+      if (!j || !j.ok) throw new Error((j && j.error) || "시트를 불러오지 못했습니다.");
+      cache = rowsToData(j.data || {});
+      return cache;
+    }
 
     const tabs = CONFIG.SHEETS || {};
-    const [c, m, st, pn] = await Promise.all([
-      tabs.commands ? fetchTab(tabs.commands) : [],
-      tabs.members ? fetchTab(tabs.members) : [],
-      tabs.status ? fetchTab(tabs.status) : [],
-      tabs.patchnotes ? fetchTab(tabs.patchnotes) : []
-    ]);
-
-    cache = {
-      commands: c.map(r => ({
-        cmd: r[0] || "", desc: r[1] || "", cat: r[2] || "기타",
-        admin: /^(y|yes|true|o|ㅇ|관리자|운영자)$/i.test(r[3] || "")
-      })).filter(x => x.cmd),
-
-      members: m.map(r => ({
-        nick: r[0] || "", age: r[1] || "", height: r[2] || "", job: r[3] || "",
-        off: r[4] || "", hobby: r[5] || "", mbti: r[6] || "", charm: r[7] || "",
-        ideal: r[8] || "", smoke: r[9] || "", say: r[10] || ""
-      })).filter(x => x.nick),
-
-      status: st.map(r => ({
-        nick: r[0] || "", state: (r[1] || "매칭").indexOf("외출") >= 0 ? "외출" : "매칭",
-        partner: r[2] || "", back: r[3] || "", note: r[4] || ""
-      })).filter(x => x.nick),
-
-      patchnotes: pn.map(r => ({
-        date: normDate(r[0]), cat: normCat(r[1]), ver: r[2] || "", body: r[3] || ""
-      })).filter(x => x.date && x.body)
-    };
+    const got = await Promise.all(KINDS.map(k => tabs[k] ? fetchTab(tabs[k]) : []));
+    const raw = {};
+    KINDS.forEach((k, i) => raw[k] = got[i]);
+    cache = rowsToData(raw);
     return cache;
   }
 
-  /* 패치 분류는 세 가지로 고정합니다. */
-  const CATS = ["오류 수정", "신규 기능 추가", "기존 기능 삭제"];
+  /* ---------- 저장 ---------- */
+  function write(data) {
+    if (!canWrite) return false;
+    cache = data;
+    memory = data;
 
-  function normCat(v) {
-    v = (v || "").trim();
-    if (CATS.indexOf(v) >= 0) return v;
-    if (/오류|버그|수정|fix/i.test(v)) return "오류 수정";
-    if (/삭제|제거|중단|remove/i.test(v)) return "기존 기능 삭제";
-    return "신규 기능 추가";
-  }
+    if (MODE === "script") {
+      /* 화면은 이미 바뀌었고, 시트 저장은 뒤이어 진행합니다.
+         Content-Type 을 text/plain 으로 보내야 브라우저가 사전 확인 요청을
+         보내지 않아 Apps Script 가 그대로 받습니다. */
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ key: adminKey(), data: dataToRows(data) })
+      })
+        .then(r => r.json())
+        .then(j => { if (!j || !j.ok) throw new Error((j && j.error) || "시트에 저장하지 못했습니다."); })
+        .catch(e => {
+          if (window.App) App.toast(e.message + " 새로고침하면 되돌아갑니다.", true);
+        });
+      return true;
+    }
 
-  /* 2026-07-20 / 2026.7.20 / 2026년 7월 20일 을 모두 받아줍니다. */
-  function normDate(v) {
-    v = (v || "").trim();
-    if (!v) return "";
-    const m = v.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
-    if (!m) return v;
-    return m[1] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[3]).slice(-2);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   window.Store = {
     get: read,
+    set: write,
+    load: load,
+
+    MODE: MODE,
+    canWrite: canWrite,
+    useSheet: MODE !== "local",
     CATS: CATS,
     normCat: normCat,
     normDate: normDate,
-    set: write,
-    load: load,
-    useSheet: useSheet,
 
-    /* 시트 편집 화면 주소 */
     sheetEditUrl() {
-      return useSheet ? "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit" : "";
+      return SHEET_ID ? "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit" : "";
     },
 
-    reset() { write(JSON.parse(JSON.stringify(SEED))); },
+    reset() { write(normalize(JSON.parse(JSON.stringify(SEED)))); },
 
     export() {
       const blob = new Blob([JSON.stringify(read(), null, 2)], { type: "application/json" });
@@ -231,34 +290,20 @@
       const fr = new FileReader();
       fr.onload = () => {
         try {
-          const data = JSON.parse(fr.result);
-          if (!data.commands || !data.members || !data.status) throw new Error("형식이 맞지 않습니다.");
+          const data = normalize(JSON.parse(fr.result));
           write(data);
           done(null);
-        } catch (e) { done(e); }
+        } catch (e) { done(new Error("파일 형식이 맞지 않습니다.")); }
       };
       fr.onerror = () => done(new Error("파일을 읽지 못했습니다."));
       fr.readAsText(file);
     },
 
-    /* 지금 목록을 시트에 붙여넣을 수 있는 CSV로 만들어 줍니다. */
+    /* 지금 목록을 시트에 붙여넣을 CSV 로 */
     toCSV(which) {
       const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-      const d = read();
-      if (which === "commands") {
-        return ["명령어,설명,분류,관리자전용"].concat(
-          d.commands.map(c => [c.cmd, c.desc, c.cat, c.admin ? "Y" : "N"].map(q).join(","))).join("\n");
-      }
-      if (which === "members") {
-        return ["닉네임,나이,키,전공 or 직업,쉬는 요일,취미,MBTI,본인의 매력,이상형,흡연유무 & 주량,하고싶은 말"].concat(
-          d.members.map(m => [m.nick, m.age, m.height, m.job, m.off, m.hobby, m.mbti, m.charm, m.ideal, m.smoke, m.say].map(q).join(","))).join("\n");
-      }
-      if (which === "patchnotes") {
-        return ["날짜,분류,버전,내용"].concat(
-          d.patchnotes.map(n => [n.date, n.cat, n.ver, n.body].map(q).join(","))).join("\n");
-      }
-      return ["닉네임,상태,상대,복귀 예정,메모"].concat(
-        d.status.map(x => [x.nick, x.state, x.partner, x.back, x.note].map(q).join(","))).join("\n");
+      const m = MAP[which], d = read();
+      return [m.head.join(",")].concat((d[which] || []).map(x => m.toRow(x).map(q).join(","))).join("\n");
     }
   };
 })();

@@ -51,8 +51,8 @@
 <script>
 App.header("commands.html");
 const admin = App.isAdmin();
-const sheet = Store.useSheet;       // 시트가 원본이면 사이트에서 수정 못 함
-const canEdit = admin && !sheet;
+const readOnly = !Store.canWrite;   // 읽기 전용 시트면 사이트에서 수정 못 함
+const canEdit = admin && !readOnly;
 const logEl = document.querySelector("[data-log]");
 const modal = document.querySelector("[data-modal]");
 let editIndex = -1;
@@ -60,7 +60,7 @@ let editIndex = -1;
 /* ---------- 관리자 버튼 ---------- */
 if (admin) {
   const tools = document.querySelector("[data-admin-tools]");
-  if (sheet) {
+  if (readOnly) {
     tools.innerHTML = `<a class="btn btn--primary" target="_blank" rel="noopener" href="${Store.sheetEditUrl()}">시트에서 수정하기</a>`;
   } else {
     tools.innerHTML = `<button class="btn btn--primary" data-add>명령어 추가</button>`;

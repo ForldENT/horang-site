@@ -60,7 +60,8 @@ horang-site/
 ├─ theme-lab.html    디자인 색을 고르는 도구 (작업용)
 ├─ SHEETS.md         구글 시트 연동 안내
 ├─ DESIGN.md         꾸미는 사람용 안내
-├─ sheet-template/   시트에 넣을 CSV 3개
+├─ apps-script/      시트에 붙일 Apps Script (사이트에서 시트에 저장)
+├─ sheet-template/   시트에 넣을 CSV 4개
 └─ assets/
    ├─ config.js      ← 관리자 키, 구글 시트 주소
    ├─ style.css      ← 꾸미는 사람은 이 파일만 만지면 됩니다
